@@ -3,16 +3,16 @@ package models
 import (
 	"time"
 
-	gocql "github.com/apache/cassandra-gocql-driver/v2"
+	gocql "github.com/gocql/gocql"
 )
 
 type Video struct {
-	videoid              gocql.UUID
-	userid               gocql.UUID
-	name                 string
-	description          string
-	location             string
-	previewImageLocation string
-	vector               gocql.VectorType
-	addedDate            time.Time
+	Videoid              gocql.UUID
+	Userid               gocql.UUID
+	Name                 string
+	Description          string
+	Location             string
+	PreviewImageLocation string
+	//ContentFeatures      [384]float32
+	AddedDate time.Time
 }
