@@ -46,5 +46,5 @@ func main() {
 
 	//router.GET("/health", healthController.GetHealth)
 
-	router.Run("localhost:8080")
+	router.RunTLS("localhost:8443", "localhost.pem", "localhost-key.pem")
 }
