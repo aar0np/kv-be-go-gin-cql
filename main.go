@@ -41,6 +41,7 @@ func main() {
 		videos := api.Group("/videos")
 		{
 			videos.GET("/id/:id", videoController.GetVideo)
+			videos.GET("/latest", videoController.GetLatestVideos)
 		}
 	}
 
