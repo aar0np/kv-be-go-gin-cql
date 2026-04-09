@@ -29,6 +29,7 @@ func main() {
 	// controller definitions
 	healthController := controllers.NewHealthController()
 	videoController := controllers.NewVideoController(session)
+	authController := controllers.NewAuthController(session)
 
 	// route definitions
 	router := gin.Default()
@@ -38,14 +39,18 @@ func main() {
 		{
 			health.GET("", healthController.GetHealth)
 		}
+		auth := api.Group("/users")
+		{
+			auth.POST("/login", authController.Login)
+			auth.GET("/me", authController.GetCurrentUser)
+			auth.GET(":id", authController.GetUser)
+		}
 		videos := api.Group("/videos")
 		{
 			videos.GET("/id/:id", videoController.GetVideo)
 			videos.GET("/latest", videoController.GetLatestVideos)
 		}
 	}
-
-	//router.GET("/health", healthController.GetHealth)
 
 	router.RunTLS("localhost:8443", "localhost.pem", "localhost-key.pem")
 }
