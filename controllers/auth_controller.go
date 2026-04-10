@@ -132,7 +132,7 @@ func (ac *AuthController) GetUser(c *gin.Context) {
 
 func (ac *AuthController) GetCurrentUser(c *gin.Context) {
 	// parse UserID from request
-	userid, err1 := getUserIdFromAuth(c)
+	userid, err1 := getUserIdFromToken(c)
 	if err1 != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err1.Error()})
 	}
@@ -146,8 +146,18 @@ func (ac *AuthController) GetCurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-func getUserIdFromAuth(c *gin.Context) (apachegocql.UUID, error) {
-	token := c.Query("token")
+func getUserIdFromToken(c *gin.Context) (apachegocql.UUID, error) {
+	// Get token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return apachegocql.MustRandomUUID(), errors.New("authorization header is required")
+	}
+
+	// Extract token from "Bearer <token>" format
+	token := authHeader
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		token = authHeader[7:]
+	}
 
 	claims, err1 := parseWithSecret(token)
 	if err1 != nil {
