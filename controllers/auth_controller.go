@@ -107,6 +107,9 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
+	// register login with database
+	ac.authDAL.RegisterLogin(id)
+
 	var jwtResp models.JwtResponse
 	jwtResp.Email = req.Email
 	jwtResp.UserID = id.String()
@@ -144,6 +147,84 @@ func (ac *AuthController) GetCurrentUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+func (ac *AuthController) UpdateCurrentUser(c *gin.Context) {
+	// parse UserID from context
+	userid, err1 := getUserIdFromToken(c)
+	if err1 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err1.Error()})
+		return
+	}
+
+	// bind request body
+	var user models.User
+	var updateUserReq models.UserUpdateRequest
+	var userCreds models.UserCredentials
+	var password string
+	var passwordChanged bool
+	var origEmail string
+	var emailChanged bool
+
+	// get User from DB
+	userFromDB, err2 := ac.authDAL.GetUserById(userid)
+	if err2 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err2.Error()})
+		return
+	}
+
+	user.Userid = userid
+
+	if err3 := c.BindJSON(&updateUserReq); err1 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err3.Error()})
+	} else {
+		// Update only the fields that are present in the request
+		if updateUserReq.FirstName != uuid.Nil.String() {
+			user.FirstName = updateUserReq.FirstName
+		}
+
+		if updateUserReq.LastName != uuid.Nil.String() {
+			user.LastName = updateUserReq.LastName
+		}
+
+		if updateUserReq.Password != uuid.Nil.String() {
+			password = hashPassword(updateUserReq.Password)
+			passwordChanged = true
+			userCreds.Password = password
+		}
+
+		if updateUserReq.Email != "" && userFromDB.Email != updateUserReq.Email {
+			// check if email already exists
+			userCreds, err4 := ac.authDAL.GetUserCredsByEmail(updateUserReq.Email)
+
+			if err4 != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err4.Error()})
+			}
+
+			if userCreds != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "email already exists"})
+				return
+			}
+			emailChanged = true
+			origEmail = userFromDB.Email
+			// set new email
+			user.Email = updateUserReq.Email
+			userCreds.Email = updateUserReq.Email
+		} else {
+			userCreds.Email = user.Email
+		}
+
+		if passwordChanged || emailChanged {
+			userCreds.Userid = user.Userid
+			ac.authDAL.UpdatePassword(userCreds)
+
+			if emailChanged {
+				ac.authDAL.DeleteUserCreds(origEmail)
+			}
+		}
+
+		ac.authDAL.UpdateUser(user)
+	}
 }
 
 func getUserIdFromToken(c *gin.Context) (apachegocql.UUID, error) {
