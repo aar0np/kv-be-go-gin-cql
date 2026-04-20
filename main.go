@@ -49,6 +49,7 @@ func main() {
 		{
 			videos.GET("/id/:id", videoController.GetVideo)
 			videos.GET("/latest", videoController.GetLatestVideos)
+			videos.GET("/id/:id/related", videoController.GetSimilarVideos)
 		}
 	}
 
