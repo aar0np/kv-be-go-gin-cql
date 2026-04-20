@@ -7,12 +7,13 @@ import (
 )
 
 type LatestVideo struct {
-	Videoid              apachegocql.UUID
-	Userid               apachegocql.UUID
-	Name                 string
-	PreviewImageLocation string
-	ContentRating        string
-	Category             string
-	AddedDate            time.Time
-	Day                  time.Time
+	Key                  apachegocql.UUID `json:"key"`
+	Videoid              apachegocql.UUID `json:"videoId"`
+	Userid               apachegocql.UUID `json:"userId"`
+	Name                 string           `json:"title"`
+	PreviewImageLocation string           `json:"thumbnailUrl"`
+	ContentRating        string           `json:"contentRating"`
+	Category             string           `json:"category"`
+	AddedDate            time.Time        `json:"submittedAt"`
+	Day                  time.Time        `json:"day"`
 }

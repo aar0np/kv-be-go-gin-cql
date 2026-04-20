@@ -1,5 +1,5 @@
 package models
 
 type LatestVideoResponse struct {
-	Data []LatestVideo
+	Data []LatestVideo `json:"data"`
 }
