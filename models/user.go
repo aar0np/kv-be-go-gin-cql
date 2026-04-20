@@ -7,11 +7,11 @@ import (
 )
 
 type User struct {
-	Userid        apachegocql.UUID
-	Email         string
-	FirstName     string
-	LastName      string
-	AccountStatus string
-	CreatedDate   time.Time
-	LastLoginDate time.Time
+	Userid        apachegocql.UUID `json:"userId"`
+	Email         string           `json:"email"`
+	FirstName     string           `json:"firstName"`
+	LastName      string           `json:"lastName"`
+	AccountStatus string           `json:"accountStatus"`
+	CreatedDate   time.Time        `json:"createdAt"`
+	LastLoginDate time.Time        `json:"lastLoginDate"`
 }

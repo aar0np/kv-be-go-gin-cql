@@ -5,12 +5,20 @@ import (
 	"killrvideo/go-backend-astra-cql/models"
 	repo "killrvideo/go-backend-astra-cql/repository"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
 	apachegocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/gin-gonic/gin"
 )
+
+var youTubePatterns = [4]string{
+	"(?:https?://)?(?:www\\.)?youtu\\.be/(?<id>[A-Za-z0-9_-]{11})",
+	"(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?v=(?<id>[A-Za-z0-9_-]{11})",
+	"(?:https?://)?(?:www\\.)?youtube\\.com/embed/(?<id>[A-Za-z0-9_-]{11})",
+	"(?:https?://)?(?:www\\.)?youtube\\.com/v/(?<id>[A-Za-z0-9_-]{11})",
+}
 
 type VideoController struct {
 	videoDAL repo.VideoDAL
@@ -31,6 +39,12 @@ func (vc *VideoController) GetVideo(c *gin.Context) {
 	video, err2 := vc.videoDAL.GetVideo(id)
 	if err2 != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err2.Error()})
+	}
+
+	// make sure that we have a YouTubeID
+	if video.YouTubeId == "" {
+		video.YouTubeId = extractYouTubeId(video.Location)
+		vc.videoDAL.UpdateYoutubeId(id, video.YouTubeId)
 	}
 
 	c.JSON(http.StatusOK, video)
@@ -75,4 +89,16 @@ func (vc *VideoController) GetLatestVideos(c *gin.Context) {
 	returnVal := models.LatestVideoResponse{Data: *latestVideos}
 
 	c.JSON(http.StatusOK, returnVal)
+}
+
+func extractYouTubeId(location string) string {
+	for _, pattern := range youTubePatterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindStringSubmatch(location)
+
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+	return ""
 }
