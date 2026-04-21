@@ -91,6 +91,60 @@ func (vc *VideoController) GetLatestVideos(c *gin.Context) {
 	c.JSON(http.StatusOK, returnVal)
 }
 
+func (vc *VideoController) GetSimilarVideos(c *gin.Context) {
+	id, err1 := apachegocql.ParseUUID(c.Param("id"))
+	if err1 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err1})
+		return
+	}
+
+	limit, err2 := strconv.Atoi(c.Query("limit"))
+	if err2 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err2})
+		return
+	}
+	// make sure limit behaves
+	if limit < 1 || limit > 20 {
+		// default to 5
+		limit = 5
+	}
+
+	// get original video so we can use its vector
+	originalVideo, err3 := vc.videoDAL.GetVideo(id)
+	if err3 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err3})
+		return
+	}
+
+	similarVideos, err4 := vc.videoDAL.GetVideosByVector(originalVideo.ContentFeatures, (limit+1)*2)
+	if err4 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err4})
+		return
+	}
+
+	var returnVal []models.Video
+	uniqueVideoIDs := make(map[string]struct{})
+
+	for _, video := range *similarVideos {
+		if video.Name == originalVideo.Name {
+			continue
+		}
+
+		if _, exists := uniqueVideoIDs[video.Name]; exists {
+			continue
+		}
+
+		returnVal = append(returnVal, video)
+		uniqueVideoIDs[video.Name] = struct{}{}
+
+		if len(returnVal) >= limit {
+			break
+		}
+	}
+
+	c.JSON(http.StatusOK, returnVal)
+}
+
 func extractYouTubeId(location string) string {
 	for _, pattern := range youTubePatterns {
 		re := regexp.MustCompile(pattern)

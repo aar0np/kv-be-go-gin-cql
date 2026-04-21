@@ -79,3 +79,19 @@ func (r *VideoDAL) GetLatestVideos(limit int) (*[]models.LatestVideo, error) {
 
 	return &returnVal, nil
 }
+
+func (r *VideoDAL) GetVideosByVector(vector [384]float32, limit int) (*[]models.Video, error) {
+	iter := r.DB.Query(
+		"SELECT videoid, userid, name, description, location, preview_image_location, added_date, youtube_id FROM videos ORDER BY content_features ANN OF ? LIMIT ?", vector, limit,
+	).Iter()
+	var video models.Video
+	var returnVal []models.Video
+	for iter.Scan(&video.Videoid, &video.Userid, &video.Name, &video.Description, &video.Location, &video.PreviewImageLocation, &video.AddedDate, &video.YouTubeId) {
+		returnVal = append(returnVal, video)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("vector query has failed: %w", err)
+	}
+
+	return &returnVal, nil
+}
