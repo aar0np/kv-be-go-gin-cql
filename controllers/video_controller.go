@@ -21,12 +21,14 @@ var youTubePatterns = [4]string{
 }
 
 type VideoController struct {
-	videoDAL repo.VideoDAL
+	videoDAL   repo.VideoDAL
+	ratingsDAL repo.RatingsDAL
 }
 
 func NewVideoController(session *apachegocql.Session) *VideoController {
 	return &VideoController{
-		videoDAL: *repo.NewVideoDAL(session),
+		videoDAL:   *repo.NewVideoDAL(session),
+		ratingsDAL: *repo.NewRatingsDAL(session),
 	}
 }
 
@@ -86,6 +88,31 @@ func (vc *VideoController) GetLatestVideos(c *gin.Context) {
 		*latestVideos = append(*latestVideos, *additionalVideos...)
 	}
 
+	//for _, latestVideo := range *latestVideos {
+	for i := range *latestVideos {
+		lVideo := &(*latestVideos)[i]
+
+		// get ratings
+		rating, err5 := vc.ratingsDAL.GetSingleRating(lVideo.Videoid)
+		if err5 != nil {
+			fmt.Println(err5)
+		}
+
+		if rating == nil {
+			lVideo.Score = 0
+		} else {
+			lVideo.Score = rating.Score
+		}
+
+		// get views
+		video, err6 := vc.videoDAL.GetVideo(lVideo.Videoid)
+		if err6 != nil {
+			fmt.Println(err6)
+		}
+
+		lVideo.ViewCount = video.Views
+	}
+
 	returnVal := models.LatestVideoResponse{Data: *latestVideos}
 
 	c.JSON(http.StatusOK, returnVal)
@@ -134,6 +161,18 @@ func (vc *VideoController) GetSimilarVideos(c *gin.Context) {
 			continue
 		}
 
+		// get ratings
+		rating, err5 := vc.ratingsDAL.GetSingleRating(video.Videoid)
+		if err5 != nil {
+			fmt.Println(err5)
+		}
+
+		if rating == nil {
+			video.Score = 0
+		} else {
+			video.Score = rating.Score
+		}
+
 		returnVal = append(returnVal, video)
 		uniqueVideoIDs[video.Name] = struct{}{}
 
@@ -143,6 +182,24 @@ func (vc *VideoController) GetSimilarVideos(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, returnVal)
+}
+
+func (vc *VideoController) RecordVideoView(c *gin.Context) {
+	videoid, err1 := apachegocql.ParseUUID(c.Param("id"))
+	if err1 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"viewError1": err1})
+		return
+	}
+
+	video, err2 := vc.videoDAL.GetVideo(videoid)
+	if err2 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"viewError2": err2})
+		return
+	}
+
+	views := video.Views + 1
+
+	vc.videoDAL.UpdateVideoView(videoid, views)
 }
 
 func extractYouTubeId(location string) string {

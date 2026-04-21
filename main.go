@@ -27,9 +27,10 @@ func main() {
 	defer session.Close()
 
 	// controller definitions
-	healthController := controllers.NewHealthController()
-	videoController := controllers.NewVideoController(session)
 	authController := controllers.NewAuthController(session)
+	healthController := controllers.NewHealthController()
+	ratingsController := controllers.NewRatingsController(session)
+	videoController := controllers.NewVideoController(session)
 
 	// route definitions
 	router := gin.Default()
@@ -50,6 +51,8 @@ func main() {
 			videos.GET("/id/:id", videoController.GetVideo)
 			videos.GET("/latest", videoController.GetLatestVideos)
 			videos.GET("/id/:id/related", videoController.GetSimilarVideos)
+			videos.GET("/:id/ratings", ratingsController.GetRatingsByVideoId)
+			videos.POST("/id/:id/view", videoController.RecordVideoView)
 		}
 	}
 

@@ -16,4 +16,10 @@ type LatestVideo struct {
 	Category             string           `json:"category"`
 	AddedDate            time.Time        `json:"submittedAt"`
 	Day                  time.Time        `json:"day"`
+	Score                float32          `json:"averageRating"`
+	ViewCount            int              `json:"views"`
+}
+
+func NewLatestVideo() *LatestVideo {
+	return &LatestVideo{ViewCount: 0, Score: 0.0}
 }

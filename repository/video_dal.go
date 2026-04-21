@@ -23,9 +23,9 @@ func (r *VideoDAL) GetVideo(id apachegocql.UUID) (*models.Video, error) {
 	//var vector []float32
 
 	err1 := r.DB.Query(
-		"SELECT userid, name, description, location, preview_image_location, added_date, content_features, youtube_id FROM videos WHERE videoid = ?",
+		"SELECT userid, name, description, location, preview_image_location, added_date, content_features, views, youtube_id FROM videos WHERE videoid = ?",
 		id,
-	).Scan(&video.Userid, &video.Name, &video.Description, &video.Location, &video.PreviewImageLocation, &video.AddedDate, &video.ContentFeatures, &video.YouTubeId)
+	).Scan(&video.Userid, &video.Name, &video.Description, &video.Location, &video.PreviewImageLocation, &video.AddedDate, &video.ContentFeatures, &video.Views, &video.YouTubeId)
 
 	if err1 != nil {
 		return nil, fmt.Errorf("query has failed: %w", err1)
@@ -82,11 +82,11 @@ func (r *VideoDAL) GetLatestVideos(limit int) (*[]models.LatestVideo, error) {
 
 func (r *VideoDAL) GetVideosByVector(vector [384]float32, limit int) (*[]models.Video, error) {
 	iter := r.DB.Query(
-		"SELECT videoid, userid, name, description, location, preview_image_location, added_date, youtube_id FROM videos ORDER BY content_features ANN OF ? LIMIT ?", vector, limit,
+		"SELECT videoid, userid, name, description, location, preview_image_location, added_date, views, youtube_id FROM videos ORDER BY content_features ANN OF ? LIMIT ?", vector, limit,
 	).Iter()
 	var video models.Video
 	var returnVal []models.Video
-	for iter.Scan(&video.Videoid, &video.Userid, &video.Name, &video.Description, &video.Location, &video.PreviewImageLocation, &video.AddedDate, &video.YouTubeId) {
+	for iter.Scan(&video.Videoid, &video.Userid, &video.Name, &video.Description, &video.Location, &video.PreviewImageLocation, &video.AddedDate, &video.Views, &video.YouTubeId) {
 		returnVal = append(returnVal, video)
 	}
 	if err := iter.Close(); err != nil {
@@ -94,4 +94,12 @@ func (r *VideoDAL) GetVideosByVector(vector [384]float32, limit int) (*[]models.
 	}
 
 	return &returnVal, nil
+}
+
+func (r *VideoDAL) UpdateVideoView(videoid apachegocql.UUID, views int) {
+	r.DB.Query(
+		"UPDATE videos SET views = ? WHERE videoid = ?",
+		views,
+		videoid,
+	).Exec()
 }
