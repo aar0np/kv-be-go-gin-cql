@@ -53,6 +53,8 @@ func main() {
 			videos.GET("/id/:id/related", videoController.GetSimilarVideos)
 			videos.GET("/:id/ratings", ratingsController.GetRatingsByVideoId)
 			videos.POST("/id/:id/view", videoController.RecordVideoView)
+			videos.GET("/:id/comments", videoController.GetComments)
+			videos.POST("/:id/comments", videoController.SubmitComment)
 		}
 	}
 

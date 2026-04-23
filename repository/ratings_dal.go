@@ -30,10 +30,6 @@ func (r *RatingsDAL) GetRatingsByVideoId(videoid apachegocql.UUID) (*[]models.Ra
 		ratings = append(ratings, rating)
 	}
 
-	if err := iter.Close(); err != nil {
-		return nil, fmt.Errorf("query has failed: %w", err)
-	}
-
 	if err1 := iter.Close(); err1 != nil {
 		fmt.Println(err1)
 		return nil, fmt.Errorf("query has failed: %w", err1)
