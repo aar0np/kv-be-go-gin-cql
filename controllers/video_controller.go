@@ -21,12 +21,18 @@ var youTubePatterns = [4]string{
 }
 
 type VideoController struct {
-	videoDAL repo.VideoDAL
+	videoDAL   repo.VideoDAL
+	ratingsDAL repo.RatingsDAL
+	commentDAL repo.CommentDAL
+	authDAL    repo.AuthDAL
 }
 
 func NewVideoController(session *apachegocql.Session) *VideoController {
 	return &VideoController{
-		videoDAL: *repo.NewVideoDAL(session),
+		videoDAL:   *repo.NewVideoDAL(session),
+		ratingsDAL: *repo.NewRatingsDAL(session),
+		commentDAL: *repo.NewCommentDAL(session),
+		authDAL:    *repo.NewAuthDAL(session),
 	}
 }
 
@@ -52,13 +58,15 @@ func (vc *VideoController) GetVideo(c *gin.Context) {
 
 func (vc *VideoController) GetLatestVideos(c *gin.Context) {
 	page, err1 := strconv.Atoi(c.Query("page"))
-	pageSize, err2 := strconv.Atoi(c.Query("page_size"))
+	pageSize, err2 := strconv.Atoi(c.Query("pageSize"))
 
 	if err1 != nil {
+		fmt.Println("Could not convert page string to int")
 		page = 0
 	}
 
 	if err2 != nil {
+		fmt.Println("Could not convert pageSize string to int")
 		pageSize = 0
 	}
 
@@ -84,6 +92,31 @@ func (vc *VideoController) GetLatestVideos(c *gin.Context) {
 		}
 
 		*latestVideos = append(*latestVideos, *additionalVideos...)
+	}
+
+	//for _, latestVideo := range *latestVideos {
+	for i := range *latestVideos {
+		lVideo := &(*latestVideos)[i]
+
+		// get ratings
+		rating, err5 := vc.ratingsDAL.GetSingleRating(lVideo.Videoid)
+		if err5 != nil {
+			fmt.Println(err5)
+		}
+
+		if rating == nil {
+			lVideo.Score = 0
+		} else {
+			lVideo.Score = rating.Score
+		}
+
+		// get views
+		video, err6 := vc.videoDAL.GetVideo(lVideo.Videoid)
+		if err6 != nil {
+			fmt.Println(err6)
+		}
+
+		lVideo.ViewCount = video.Views
 	}
 
 	returnVal := models.LatestVideoResponse{Data: *latestVideos}
@@ -134,6 +167,18 @@ func (vc *VideoController) GetSimilarVideos(c *gin.Context) {
 			continue
 		}
 
+		// get ratings
+		rating, err5 := vc.ratingsDAL.GetSingleRating(video.Videoid)
+		if err5 != nil {
+			fmt.Println(err5)
+		}
+
+		if rating == nil {
+			video.Score = 0
+		} else {
+			video.Score = rating.Score
+		}
+
 		returnVal = append(returnVal, video)
 		uniqueVideoIDs[video.Name] = struct{}{}
 
@@ -143,6 +188,141 @@ func (vc *VideoController) GetSimilarVideos(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, returnVal)
+}
+
+func (vc *VideoController) RecordVideoView(c *gin.Context) {
+	videoid, err1 := apachegocql.ParseUUID(c.Param("id"))
+	if err1 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"viewError1": err1})
+		return
+	}
+
+	video, err2 := vc.videoDAL.GetVideo(videoid)
+	if err2 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"viewError2": err2})
+		return
+	}
+
+	views := video.Views + 1
+
+	vc.videoDAL.UpdateVideoView(videoid, views)
+}
+
+func (vc *VideoController) GetComments(c *gin.Context) {
+	videoid, err1 := apachegocql.ParseUUID(c.Param("id"))
+	page, err2 := strconv.Atoi(c.Query("page"))
+	pageSize, err3 := strconv.Atoi(c.Query("pageSize"))
+
+	if err1 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"commentError1": err1})
+		return
+	}
+	if err2 != nil {
+		fmt.Println("Could not convert page string to integer")
+		page = 0
+	}
+
+	if err3 != nil {
+		fmt.Println("Could not convert pageSize string to integer")
+		pageSize = 0
+	}
+
+	if page <= 0 || pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	comments, err4 := vc.commentDAL.GetCommentsByVideoId(videoid, pageSize)
+	if err4 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"commentError3": err4})
+		return
+	}
+
+	// Initialize response with empty slice to ensure JSON returns [] instead of null
+	var commentData []models.Comment
+	if comments != nil && len(*comments) > 0 {
+		commentData = *comments
+	} else {
+		commentData = make([]models.Comment, 0)
+	}
+
+	pagination := models.Pagination{
+		TotalPages:  1,
+		PageSize:    pageSize,
+		TotalItems:  len(commentData),
+		CurrentPage: page,
+	}
+
+	returnVal := models.CommentResponse{Data: commentData, Pagination: pagination}
+
+	c.JSON(http.StatusOK, returnVal)
+}
+
+func (vc *VideoController) SubmitComment(c *gin.Context) {
+	// get userid from auth
+	userid, err1 := getUserIdFromToken(c)
+	if err1 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err1.Error()})
+		fmt.Println("count not parse userid from auth")
+		return
+	}
+
+	// get videoid from url
+	videoid, err2 := apachegocql.ParseUUID(c.Param("id"))
+	if err2 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err2.Error()})
+		fmt.Println("count not parse videoid from url")
+		return
+	}
+
+	// get comment from request body
+	var commentReq models.CommentSubmitRequest
+	if err3 := c.ShouldBindJSON(&commentReq); err3 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err3.Error()})
+		fmt.Println("count not commentReq videoid from CommentSubmitRequest")
+		return
+	}
+
+	// generate commentid TimeUUID and sentiment score
+	commentid := apachegocql.TimeUUID()
+
+	// save comment to database
+	comment := models.Comment{
+		Videoid:        videoid,
+		Commentid:      commentid,
+		Userid:         userid,
+		CommentText:    commentReq.Text,
+		SentimentScore: 0,
+	}
+	vc.commentDAL.SaveComment(comment)
+	vc.commentDAL.SaveCommentByUser(comment)
+
+	firstName := ""
+	lastName := ""
+	userName := ""
+
+	user, err4 := vc.authDAL.GetUserById(userid)
+	if err4 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err4.Error()})
+		fmt.Println("count not get user from authDAL")
+	} else {
+		firstName = user.FirstName
+		lastName = user.LastName
+		userName = user.FirstName + " " + user.LastName
+	}
+
+	response := models.CommentSubmitResponse{
+		CommentId:      commentid.String(),
+		VideoId:        videoid.String(),
+		UserId:         userid.String(),
+		Comment:        commentReq.Text,
+		Timestamp:      time.Now(),
+		SentimentScore: 0,
+		FirstName:      firstName,
+		LastName:       lastName,
+		UserName:       userName,
+	}
+
+	c.JSON(http.StatusCreated, response)
 }
 
 func extractYouTubeId(location string) string {
