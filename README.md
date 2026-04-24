@@ -3,7 +3,6 @@ A reference backend for the KilrlVideo sample application rebuilt for 2026 using
 
 ## Notice
 Work-in-progress!
- - Only the Health, Auth, and Video controllers exist, and only the GETters, for now.
 
 ## Overview
 This repo demonstrates modern API best-practices with:
@@ -40,6 +39,8 @@ go get -u github.com/gin-gonic/gin
 | `ASTRA_DB_KEYSPACE` | `killrvideo` |
 | `ASTRA_DB_SCB_DIR` | Path to the SCB file downloaded from the Astra UI |
 | `JWT_KEY` | A random, 64-byte secret key used to sign the JSON Web Token |
+| `YOUTUBE_API_KEY` | Required for pulling new video info from YouTube API |
+| `HF_API_KEY` | HuggingFace key used to hit a HuggingFace Space to create an embedding |
 
 ## Running the Application
 ```bash

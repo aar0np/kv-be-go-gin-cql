@@ -18,6 +18,11 @@ type Video struct {
 	Views                int              `json:"views"`
 	Score                float32          `json:"averageRating"`
 	YouTubeId            string           `json:"youtubeVideoId"`
+	Tags                 []string         `json:"tags"`
+	ContentRating        string           `json:"content_rating"`
+	Language             string           `json:"lanugage"`
+	Category             string           `json:"category"`
+	LocationType 		 int              `json:"location_type"`
 }
 
 func NewVideo() *Video {

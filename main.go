@@ -49,6 +49,7 @@ func main() {
 		videos := api.Group("/videos")
 		{
 			videos.GET("/id/:id", videoController.GetVideo)
+			videos.POST("", videoController.SubmitVideo)
 			videos.GET("/latest", videoController.GetLatestVideos)
 			videos.GET("/id/:id/related", videoController.GetSimilarVideos)
 			videos.GET("/:id/ratings", ratingsController.GetRatingsByVideoId)

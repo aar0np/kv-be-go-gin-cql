@@ -34,6 +34,18 @@ func (r *VideoDAL) GetVideo(id apachegocql.UUID) (*models.Video, error) {
 	return video, nil
 }
 
+func (r *VideoDAL) SaveVideo(video models.Video) {
+	r.DB.Query(`INSERT INTO videos (videoid, userid, location, preview_image_location, content_features, added_date, youtube_id, content_rating, category, language, name, description, views, tags, location_type) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		video.Videoid, video.Userid, video.Location, video.PreviewImageLocation, video.ContentFeatures, video.AddedDate, video.YouTubeId, video.ContentRating, video.Category, video.Language, video.Name, video.Description, video.Views, video.Tags, video.LocationType,
+	).Exec()
+}
+
+func (r *VideoDAL) SaveLatestVideo(video models.LatestVideo) {
+	r.DB.Query(`INSERT INTO latest_videos (videoid, userid, preview_image_location, added_date, content_rating, category, name, day) VALUES(?,?,?,?,?,?,?,?)`,
+		video.Videoid, video.Userid, video.PreviewImageLocation, video.AddedDate, video.ContentRating, video.Category, video.Name, video.Day,
+	).Exec()
+}
+
 func (r *VideoDAL) UpdateYoutubeId(videoid apachegocql.UUID, youtubeId string) {
 	r.DB.Query(
 		"UPDATE videos SET youtube_id = ? WHERE videoid = ?",
