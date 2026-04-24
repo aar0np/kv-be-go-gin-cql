@@ -103,7 +103,7 @@ func (vc *VideoController) SubmitVideo(c *gin.Context) {
 		Videoid:      videoid,
 		LocationType: 1,
 		AddedDate:    time.Now().UTC(),
-		Views:        0,
+		HuggingFaceResponse:        0,
 	}
 
 	youtubeData, err4 := getYouTubeMetadata(youtubeId)
@@ -492,10 +492,6 @@ func getYouTubeMetadata(youTubeId string) (models.YouTubeMetadata, error) {
 func getHFEmbeddingData(text string) (models.HuggingFaceResponse, error) {
 	hfClient := &http.Client{}
 
-	//hfRequest := models.HuggingFaceRequest{
-	//	Text:  text,
-	//	Model: modelId,
-	//}
 	hfRequestString := "{\"text\": \"" + text + "\", \"model\": \"" + modelId + "\"}"
 	jsonBody := []byte(hfRequestString)
 	bodyReader := bytes.NewReader(jsonBody)
